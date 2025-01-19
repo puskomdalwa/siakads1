@@ -1,0 +1,10 @@
+SIAKAD IAI Darullughh Wadda'wah
+
+Terdapat 8 User (Akses) :
+1. Administrator	-> user : admin;		pass : admin123456789;
+2. Keuangan 		-> user : muhammadadil; pass : 123456;
+4. Program Studi	-> user : prodiesy; 	pass : 123456;
+5. Dosen/Dosen Wali	-> user : 80188; 		pass : 123456;
+6. Mahasiswa		-> user : nim; 			pass : nim;
+7. Staf Admin 		-> user : stafesy; 		pass : 123456;
+8. Pimpinan 		-> user : warek2; 		pass : 123456;
