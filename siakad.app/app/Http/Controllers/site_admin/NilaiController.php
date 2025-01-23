@@ -1,17 +1,14 @@
 <?php
-namespace App\Http\Controllers\site_dosen;
+namespace App\Http\Controllers\site_admin;
 
-use PDF;
 use Auth;
 use Alert;
-use App\PT;
-use App\KRS;
 use App\Ref;
-use App\Dosen;
 use App\Prodi;
 use App\Absensi;
 use App\KRSDetail;
 use App\BobotNilai;
+//use App\User;
 use App\ThAkademik;
 use App\FormSchadule;
 use App\JadwalKuliah;
@@ -24,63 +21,65 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Services\ServiceNilai;
 use App\Http\Controllers\Controller;
 
-class DosenNilaiController extends Controller
+class NilaiController extends Controller
 {
-
     private $title = 'Nilai Mahasiswa';
-    private $redirect = 'dosen_nilai';
-    private $folder = 'site_dosen/dosen_nilai';
-    private $class = 'dosen_nilai';
+    private $redirect = 'nilai';
+    private $folder = 'nilai';
+    private $class = 'nilai';
 
     private $rules = [
         'th_akademik_id' => 'required',
         'prodi_id' => 'required',
         'kelas_id' => 'required',
         'kelompok_id' => 'required',
-        'kurikulum_matakuliah_id' => 'required',
         'dosen_id' => 'required',
         'ruang_kelas_id' => 'required',
         'hari_id' => 'required',
+        'kurikulum_matakuliah_id' => 'required',
     ];
 
     public function index()
     {
-        date_default_timezone_set('Asia/Jakarta');
-
-        $title = $this->title;
-        $folder = $this->folder;
-        $redirect = $this->redirect;
-        $kode = Auth::user()->username;
-
-        $list_prodi = Prodi::get();
-        $list_kelas = Ref::where('table', 'Kelas')->get();
-
         $th_akademik = ThAkademik::Aktif()->first();
         $th_akademik_id = $th_akademik->id;
 
-        // $list_thakademik = ThAkademik::where('id', $th_akademik_id)->orderBy('kode', 'DESC')->get();
-        $list_thakademik = ThAkademik::orderBy('kode', 'DESC')->get();
-        // $list_thakademik = ThAkademik::where('id', '!=', 20)->orderBy('kode', 'DESC')->get();
+        $title = $this->title;
+        $redirect = $this->redirect;
+        $folder = $this->folder;
 
+        $level = strtolower(Auth::user()->level->level);
+        $list_thakademik = ThAkademik::orderBy('kode', 'DESC')->get();
+
+        $tgl = date('Y-m-d H:i:s');
         $semester = $th_akademik->semester;
 
-        if ($semester == 'Ganjil') {
-            $form = FormSchadule::where('kode', 'NIL-1')->first();
+        $form = FormSchadule::where('kode', 'NILAI')->first();
+        $prodi_id = @strtolower(Auth::user()->prodi->id);
+
+        if ($prodi_id) {
+            $list_prodi = Prodi::where('id', $prodi_id)->get();
         } else {
-            $form = FormSchadule::where('kode', 'NIL-2')->first();
+            // $list_prodi = Prodi::where('jenjang', '!=', 'S1')->orderBy('kode', 'ASC')->get();
+            $list_prodi = Prodi::orderBy('kode', 'ASC')->get();
         }
 
-        $form->tgl_mulai = date('Y-m-d 00:00:00', strtotime($form->tgl_mulai));
-        $form->tgl_selesai = date('Y-m-d 23:59:59', strtotime($form->tgl_selesai));
-        $tgl = date('Y-m-d H:i:s');
-        //$tgl_mulai     = date_format($form->tgl_mulai,'Y-m-d H:i:s');
-        //$tgl_selesai = date_format($form->tgl_selesai,'Y-m-d H:i:s');
-        
-        if(\Auth::user()->dosen->id == 66){
-            $form->tgl_mulai = date('Y-m-d 00:00:00', strtotime("2023-12-12"));
-            $form->tgl_selesai = date('Y-m-d 23:59:59', strtotime("2026-12-12"));
-        };
+        $list_kelas = Ref::where('table', 'Kelas')->get();
 
+        // $row = JadwalKuliah::join('trans_kurikulum_matakuliah as kurikulum_mat', 'kurikulum_mat.id', '=', 'trans_jadwal_kuliah.kurikulum_matakuliah_id')
+        //         ->join('mst_matakuliah as matakuliah', 'matakuliah.id', '=', 'kurikulum_mat.matakuliah_id')
+        //         ->join('trans_kurikulum as kurikulum', 'kurikulum.id', '=', 'kurikulum_mat.kurikulum_id')
+        //         ->join('mst_th_akademik as th_akademik', 'th_akademik.id', '=', 'kurikulum.th_akademik_id')
+        //         ->join('ref as ref_kelompok', 'ref_kelompok.id', '=', 'trans_jadwal_kuliah.kelompok_id')
+        //         ->join('ref as ref_hari', 'ref_hari.id', '=', 'trans_jadwal_kuliah.hari_id')
+        //         ->join('mst_dosen as dosen', 'dosen.id', '=', 'trans_jadwal_kuliah.dosen_id')
+        //         ->join('ref as ref_ruang_kelas', 'ref_ruang_kelas.id', '=', 'trans_jadwal_kuliah.ruang_kelas_id')
+        //         ->join('ref as ref_jam_kuliah', 'ref_jam_kuliah.id', '=', 'trans_jadwal_kuliah.jam_kuliah_id')
+        //         ->select('trans_jadwal_kuliah.*', 'matakuliah.kode as kd_mk', 'matakuliah.nama as nama_mk',
+        //                 'matakuliah.sks as sks_mk', 'matakuliah.smt as smt_mk', 'ref_kelompok.kode as kelompok',
+        //                 'th_akademik.kode as kurikulum', 'dosen.nama as nama_dosen', 'dosen.kode as kode_dosen', 'ref_hari.nama as hari',
+        //                 'ref_ruang_kelas.kode as ruang_kelas', 'ref_jam_kuliah.nama as jamkul');
+        // dd($row);
         return view(
             $folder . '.index',
             compact(
@@ -90,71 +89,85 @@ class DosenNilaiController extends Controller
                 'list_thakademik',
                 'list_prodi',
                 'list_kelas',
-                'kode',
-                'tgl',
-                'form'
+                'prodi_id',
+                'level',
+                'form',
+                'tgl'
             )
         );
     }
 
     public function getData(Request $request)
     {
-        // $th_akademik = ThAkademik::Aktif()->first();
-        // $semester = $th_akademik->semester;
+        $prodi_id = $request->prodi_id;
+        $kelas_id = $request->kelas_id;
         $th_akademik_id = $request->th_akademik_id;
 
-        $kode = Auth::user()->username;
-        $dosen = Dosen::where('kode', $kode)->first();
+        $search = $request->search['value'];
 
-        $row = JadwalKuliah::where('dosen_id', $dosen->id)
-            ->where('th_akademik_id', $th_akademik_id)
-            ->with(['kurikulum_matakuliah', 'dosen', 'kelompok', 'hari', 'jamkul', 'ruang_kelas'])
-            ->get();
-
-        //print_r($row->id);
+        // $row = JadwalKuliah::where('th_akademik_id', $thaka_id)
+        //     ->when($prodi_id, function ($query) use ($prodi_id) {
+        //         return $query->where('prodi_id', $prodi_id);
+        //     })
+        //     ->when($kelas_id, function ($query) use ($kelas_id) {
+        //         return $query->where('kelas_id', $kelas_id);
+        //     })
+        //     ->with(['kurikulum_matakuliah', 'dosen', 'kelompok', 'hari', 'ruang_kelas', 'jamkul'])->get();
+        $row = JadwalKuliah::join('trans_kurikulum_matakuliah as kurikulum_mat', 'kurikulum_mat.id', '=', 'trans_jadwal_kuliah.kurikulum_matakuliah_id')
+            ->join('mst_matakuliah as matakuliah', 'matakuliah.id', '=', 'kurikulum_mat.matakuliah_id')
+            ->join('trans_kurikulum as kurikulum', 'kurikulum.id', '=', 'kurikulum_mat.kurikulum_id')
+            ->join('mst_th_akademik as th_akademik', 'th_akademik.id', '=', 'kurikulum.th_akademik_id')
+            ->join('ref as ref_kelompok', 'ref_kelompok.id', '=', 'trans_jadwal_kuliah.kelompok_id')
+            ->join('ref as ref_hari', 'ref_hari.id', '=', 'trans_jadwal_kuliah.hari_id')
+            ->join('mst_dosen as dosen', 'dosen.id', '=', 'trans_jadwal_kuliah.dosen_id')
+            ->join('ref as ref_ruang_kelas', 'ref_ruang_kelas.id', '=', 'trans_jadwal_kuliah.ruang_kelas_id')
+            ->join('ref as ref_jam_kuliah', 'ref_jam_kuliah.id', '=', 'trans_jadwal_kuliah.jam_kuliah_id')
+            ->select(
+                'trans_jadwal_kuliah.*',
+                'matakuliah.kode as kd_mk',
+                'matakuliah.nama as nama_mk',
+                'matakuliah.sks as sks_mk',
+                'matakuliah.smt as smt_mk',
+                'ref_kelompok.kode as kelompok',
+                'th_akademik.kode as kurikulum',
+                'dosen.nama as nama_dosen',
+                'dosen.kode as kode_dosen',
+                'ref_hari.nama as hari',
+                'ref_ruang_kelas.kode as ruang_kelas',
+                'ref_jam_kuliah.nama as waktu'
+            );
 
         return Datatables::of($row)
-            ->addColumn('th_akademik', function ($row) {
-                return @$row->th_akademik->kode;
-            })
-            ->addColumn('kd_mk', function ($row) {
-                return $row->kurikulum_matakuliah->matakuliah->kode;
-            })
-            ->addColumn('nama_mk', function ($row) {
-                return $row->kurikulum_matakuliah->matakuliah->nama;
-            })
-            ->addColumn('sks_mk', function ($row) {
-                return $row->kurikulum_matakuliah->matakuliah->sks;
-            })
-            ->addColumn('smt_mk', function ($row) {
-                return $row->kurikulum_matakuliah->matakuliah->smt;
-            })
-            ->addColumn('kelompok', function ($row) {
-                return $row->kelompok->kode;
-            })
-            ->addColumn('kurikulum', function ($row) {
-                return $row->kurikulum_matakuliah->kurikulum->th_akademik->kode;
+            ->filter(function ($query) use ($search, $th_akademik_id, $prodi_id, $kelas_id) {
+                $query->where('trans_jadwal_kuliah.th_akademik_id', $th_akademik_id)
+                    ->when($prodi_id, function ($query) use ($prodi_id) {
+                        return $query->where('trans_jadwal_kuliah.prodi_id', $prodi_id);
+                    })
+                    ->when($kelas_id, function ($query) use ($kelas_id) {
+                        return $query->where('trans_jadwal_kuliah.kelas_id', $kelas_id);
+                    });
+                $query->where(function ($query) use ($search) {
+                    $query->orWhere('matakuliah.kode', 'LIKE', "%$search%")
+                        ->orWhere('matakuliah.nama', 'LIKE', "%$search%")
+                        ->orWhere('matakuliah.sks', 'LIKE', "%$search%")
+                        ->orWhere('matakuliah.smt', 'LIKE', "%$search%")
+                        ->orWhere('ref_kelompok.kode', 'LIKE', "%$search%")
+                        ->orWhere('th_akademik.kode', 'LIKE', "%$search%")
+                        ->orWhere('th_akademik.kode', 'LIKE', "%$search%")
+                        ->orWhere('dosen.kode', 'LIKE', "%$search%")
+                        ->orWhere('dosen.nama', 'LIKE', "%$search%")
+                        ->orWhere('ref_hari.nama', 'LIKE', "%$search%")
+                        ->orWhere('ref_ruang_kelas.kode', 'LIKE', "%$search%");
+                });
             })
             ->addColumn('dosen', function ($row) {
-                return $row->dosen->nama;
+                return @$row->dosen->kode . ' - ' . $row->dosen->nama;
             })
-            ->addColumn('hari', function ($row) {
-                return $row->hari->nama;
-            })
-            ->addColumn('ruang_kelas', function ($row) {
-                return $row->ruang_kelas->kode;
-            })
-            ->addColumn('waktu', function ($row) {
-                return $row->jamkul->nama;
-            })
-
             ->addColumn('jml_mhs', function ($row) {
-                $krs_detail = KRSDetail::select('KRSDetail.*')
-                    ->join('trans_krs', 'trans_krs.id', '=', 'trans_krs_detail.krs_id')
+                $krs_detail = KRSDetail::join('trans_krs', 'trans_krs.id', '=', 'trans_krs_detail.krs_id')
                     ->join('mst_mhs', 'mst_mhs.nim', '=', 'trans_krs.nim')
                     ->where('trans_krs_detail.jadwal_kuliah_id', $row->id)
                     ->where('trans_krs.acc_pa', 'Setujui');
-
                 return $krs_detail->count();
             })
             ->addColumn('status', function ($row) {
@@ -165,48 +178,66 @@ class DosenNilaiController extends Controller
 
                 $krs_detail_nilai = KRSDetail::join('trans_krs', 'trans_krs.id', '=', 'trans_krs_detail.krs_id')
                     ->join('mst_mhs', 'mst_mhs.nim', '=', 'trans_krs.nim')
-                    ->where('trans_krs_detail.jadwal_kuliah_id', $row->id)
                     ->where('trans_krs.acc_pa', 'Setujui')
+                    ->where('trans_krs_detail.jadwal_kuliah_id', $row->id)
                     ->whereNotNull('trans_krs_detail.nilai_akhir')->count();
 
-                return $krs_detail == $krs_detail_nilai ? '<i class="fa fa-check text-success"></i>' :
-                    '<i class="fa fa-times" style="font-size:16px;color:red"></i>' . "($krs_detail_nilai/$krs_detail)";
+                if ($krs_detail > 0) {
+                    return $krs_detail == $krs_detail_nilai ? '<i class="fa fa-check text-success"></i> ' : '
+				<i class="fa fa-times text-danger"></i>';
+                }
+                return '<i class="fa fa-times text-danger"></i>';
             })
-            ->addColumn('nilai', function ($row) {
-                $krs_detail = KRSDetail::join('trans_krs', 'trans_krs.id', '=', 'trans_krs_detail.krs_id')
-                    ->join('mst_mhs', 'mst_mhs.nim', '=', 'trans_krs.nim')
-                    ->where('trans_krs.acc_pa', 'Setujui')
-                    ->where('trans_krs_detail.jadwal_kuliah_id', $row->id)->count();
-
-                $krs_detail_nilai = KRSDetail::join('trans_krs', 'trans_krs.id', '=', 'trans_krs_detail.krs_id')
-                    ->join('mst_mhs', 'mst_mhs.nim', '=', 'trans_krs.nim')
-                    ->where('trans_krs_detail.jadwal_kuliah_id', $row->id)
-                    ->where('trans_krs.acc_pa', 'Setujui')
-                    ->whereNotNull('trans_krs_detail.nilai_akhir')->count();
-
-                return $krs_detail == $krs_detail_nilai ? "Sukses" : "Bermasalah";
-            })
-
             ->addColumn('action', function ($row) {
-                $btn = '<div class="btn-group btn-group-xs" id="c-tooltips-demo">';
-
-                $btn = $btn . '<a href="' . url('/' . $this->class . '/' . $row->id . '/edit') . '" class="btn btn-primary" >Edit</a>';
-                $btn = $btn . '<a href="' . url('/' . $this->class . '/' . $row->id . '/cetak') . '" target="_blank" class="btn btn-success" >Cetak</a>';
-                //     $btn = $btn . '<a href="' . url('/' . $this->class . '/' . $row->id . '/edit') . '"
-                // class="btn btn-info btn-xs btn-rounded tooltip-info" data-toggle="tooltip"
-                // data-placement="top" data-original-title="Edit"><i class="fa fa-edit"></i></a>';
-    
-                //     $btn = $btn . '<a href="' . url('/' . $this->class . '/' . $row->id . '/cetak') . '"
-                // class="btn btn-info btn-xs btn-rounded tooltip-info" data-toggle="tooltip" target="_blank"
-                // data-placement="top" data-original-title="Print"><i class="fa fa-print"></i></a>';
-    
-                $btn = $btn . '</div>';
-                return $btn;
+                return '<div class="btn-group">
+                <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown">Klik <span class="caret"></span></button>
+                <ul class="dropdown-menu pull-right">
+                    <li><a href="' . url('/' . $this->class . '/' . $row->id . '/edit') . '">Edit</a></li>
+                </ul>
+            </div>';
             })
-            ->rawColumns(['action', 'status'])
+            ->addColumn('tutup', function ($row) {
+                return '<i class="fa fa-times-circle text-danger"></i>';
+            })
+            ->rawColumns(['status', 'action', 'tutup'])
             ->make(true);
     }
 
+    public function edit($id)
+    {
+        $level = strtolower(Auth::user()->level->level);
+        $userx = @strtolower(Auth::user()->username);
+        $data = JadwalKuliah::findOrFail($id);
+
+        $title = $this->title;
+        $redirect = $this->redirect;
+        $folder = $this->folder;
+
+        $tgl = date('Y-m-d H:i:s');
+
+        $th_akademik = ThAkademik::aktif()->first();
+        $semester = $th_akademik->semester;
+
+        if ($semester == 'Ganjil') {
+            $form = FormSchadule::where('kode', 'NIL-1')
+                ->first();
+        } else {
+            $form = FormSchadule::where('kode', 'NIL-2')
+                ->first();
+        }
+        $komponen_nilai = KomponenNilai::get();
+        // $list_mhs = KRSDetail::orderBy('nim', 'asc')
+        //     ->where('jadwal_kuliah_id', $id)->skip(0)->take(10)->get();
+
+        $namaMatkul = isset($data->kurikulum_matakuliah->matakuliah->nama) ? $data->kurikulum_matakuliah->matakuliah->nama : "";
+        $cekSkripsi = strtolower($namaMatkul) == "skripsi" ? true : false;
+
+        $nilaiAccess = ServiceNilai::access();
+        return view(
+            $folder . '.edit',
+            compact('title', 'redirect', 'folder', 'userx', 'data', 'komponen_nilai', 'level', 'form', 'tgl', 'cekSkripsi', 'id', 'nilaiAccess')
+        );
+    }
     public function getDataNilai($id, Request $request)
     {
         $search = $request->search['value'];
@@ -236,7 +267,7 @@ class DosenNilaiController extends Controller
                 return $cekSudahIsiNilai !== null ? 'alert-success' : 'alert-danger';
             })
             ->addColumn('data_isi_nilai_url', function ($row) use ($id) {
-                return url($this->redirect . "/$id/getDataIsiNilai/$row->id");
+                return url($this->folder . "/$id/getDataIsiNilai/$row->id");
             })
             ->addColumn('action', function ($row) use ($id) {
                 return '<button id="action-' . $row->id . '" type="button" class="btn btn-success" style="border-radius:20px;display:inline;padding:2px 8px">
@@ -272,9 +303,9 @@ class DosenNilaiController extends Controller
         $dataTable = Datatables::of($row);
         $dataTable->filter(function ($query) use ($search) {
             $query->where(function ($query) use ($search) {
-                $query->orWhere('trans_krs_detail.nim', 'LIKE', "%$search")
-                    ->orWhere('mst_mhs.nama', 'LIKE', "%$search")
-                    ->orWhere('ref_jk.nama', 'LIKE', "%$search");
+                $query->orWhere('trans_krs_detail.nim', 'LIKE', "%$search%")
+                    ->orWhere('mst_mhs.nama', 'LIKE', "%$search%")
+                    ->orWhere('ref_jk.nama', 'LIKE', "%$search%");
             });
         });
         $dataTable->addColumn('hadir', function ($row) use ($data) {
@@ -414,7 +445,7 @@ class DosenNilaiController extends Controller
             return [
                 'status' => true,
                 'title' => 'Sukses',
-                'text' => 'Berhasil simpan nilai ' . $krs_detail->nim . ' ' . $jumlahAbsensi,
+                'text' => 'Berhasil simpan nilai ' . $krs_detail->nim,
                 'type' => 'success',
                 'id' => $request->id
             ];
@@ -430,10 +461,8 @@ class DosenNilaiController extends Controller
             ];
         }
     }
-
     public function getDataNilai2($id, Request $request)
     {
-        // dd($request);
         $search = $request->search['value'];
         $komponen_nilai = KomponenNilai::get();
         $data = JadwalKuliah::findOrFail($id);
@@ -445,8 +474,6 @@ class DosenNilaiController extends Controller
             ->join('ref as ref_jk', 'ref_jk.id', '=', 'mst_mhs.jk_id')
             ->where('trans_krs_detail.jadwal_kuliah_id', $id)
             ->select('trans_krs_detail.*', 'mst_mhs.nama as mhs_nama', 'ref_jk.kode as mhs_jk', 'mst_mhs.id as mhs_id', );
-        // ->skip(0)
-        // ->take(5);
 
         $dataTable = Datatables::of($row);
         $dataTable->filter(function ($query) use ($search) {
@@ -462,6 +489,7 @@ class DosenNilaiController extends Controller
 
         $rawCol = [];
         foreach ($komponen_nilai as $kn) {
+            // yang bikin lama
             $dataTable->addColumn($kn->nama, function ($row) use ($kn, $cekSkripsi, $data) {
                 if ($kn->id > 1) {
                     $nilai = getNilai($row->id, $kn->id);
@@ -511,171 +539,62 @@ class DosenNilaiController extends Controller
         return $dataTable->make(true);
     }
 
-    public function edit($id)
-    {
-        $data = JadwalKuliah::findOrFail($id);
-
-        $title = $this->title;
-        $redirect = $this->redirect;
-        $folder = $this->folder;
-
-        $th_akademik = ThAkademik::aktif()->first();
-        $semester = $th_akademik->semester;
-
-        $tgl = date('Y-m-d H:i:s');
-        $form = FormSchadule::where('kode', 'NILAI')->first();
-
-        if ($semester == 'Ganjil') {
-            $form = FormSchadule::where('kode', 'NIL-1')->first();
-        } else {
-            $form = FormSchadule::where('kode', 'NIL-2')->first();
-        }
-
-        $form->tgl_mulai = date('Y-m-d 00:00:00', strtotime($form->tgl_mulai));
-        $form->tgl_selesai = date('Y-m-d 23:59:59', strtotime($form->tgl_selesai));
-
-        $list_mhs = KRSDetail::orderBy('nim', 'asc')->where('jadwal_kuliah_id', $id)->get();
-        $komponen_nilai = KomponenNilai::get();
-
-        $namaMatkul = isset($data->kurikulum_matakuliah->matakuliah->nama) ? $data->kurikulum_matakuliah->matakuliah->nama : "";
-        $cekSkripsi = strtolower($namaMatkul) == "skripsi" ? true : false;
-
-        if(\Auth::user()->dosen->id == 66){
-            $form->tgl_mulai = date('Y-m-d 00:00:00', strtotime("2023-12-12"));
-            $form->tgl_selesai = date('Y-m-d 23:59:59', strtotime("2026-12-12"));
-        };
-        return view(
-            $folder . '.edit',
-            compact('title', 'redirect', 'folder', 'data', 'list_mhs', 'komponen_nilai', 'tgl', 'form', 'cekSkripsi', 'id')
-        );
-    }
-
     public function getBobotNilai(Request $request)
     {
         $nilai_akhir = $request->nilai_akhir;
-        $data = BobotNilai::where('nilai_max', '>=', $nilai_akhir)->orderBy('nilai_max', 'asc')->limit(1)->first();
+
+        $data = BobotNilai::where('nilai_max', '>=', $nilai_akhir)
+            ->orderBy('nilai_max', 'asc')
+            ->limit(1)->first();
 
         return response()->json([
-            'nilai_bobot' => $data->nilai_bobot,
             'nilai_huruf' => $data->nilai_huruf,
+            'nilai_bobot' => $data->nilai_bobot,
         ]);
     }
 
     public function update(Request $request, $id)
     {
-        foreach ($request->input as $key => $value) {
-            $komponen_nilai = KomponenNilai::get();
-            foreach ($komponen_nilai as $kn) {
-                $krs_detail_nilai = KRSDetailNilai::where('krs_detail_id', $value['id'])
-                    ->where('komponen_nilai_id', $kn->id)->first();
+        try {
+            DB::beginTransaction();
+            foreach ($request->input as $key => $value) {
+                $komponen_nilai = KomponenNilai::get();
+                foreach ($komponen_nilai as $kn) {
+                    $krs_detail_nilai = KRSDetailNilai::where('krs_detail_id', $value['id'])
+                        ->where('komponen_nilai_id', $kn->id)->first();
 
-                if (!$krs_detail_nilai) {
-                    $krs_detail_nilai = new KRSDetailNilai;
+                    if (!$krs_detail_nilai) {
+                        $krs_detail_nilai = new KRSDetailNilai;
+                    }
+
+                    $krs_detail_nilai->jadwal_kuliah_id = $request->jadwal_kuliah_id;
+                    $krs_detail_nilai->krs_detail_id = $value['id'];
+                    $krs_detail_nilai->komponen_nilai_id = $kn->id;
+                    $krs_detail_nilai->komponen_nilai = $kn->nama;
+                    $krs_detail_nilai->bobot_nilai = $kn->bobot;
+                    $krs_detail_nilai->nilai = $value[$kn->nama];
+                    $krs_detail_nilai->user_id = Auth::user()->id;
+                    $krs_detail_nilai->save();
                 }
 
-                $krs_detail_nilai->jadwal_kuliah_id = $request->jadwal_kuliah_id;
-                $krs_detail_nilai->krs_detail_id = $value['id'];
-                $krs_detail_nilai->komponen_nilai_id = $kn->id;
-                $krs_detail_nilai->komponen_nilai = $kn->nama;
-                $krs_detail_nilai->bobot_nilai = $kn->bobot;
-                $krs_detail_nilai->nilai = $value[$kn->nama];
-                $krs_detail_nilai->user_id = Auth::user()->id;
-                $krs_detail_nilai->save();
+                $krs_detail = KRSDetail::where('id', $value['id'])->first();
+                if ($krs_detail) {
+                    $krs_detail->nilai_akhir = $value['nilai_akhir'];
+                    $krs_detail->nilai_bobot = $value['nilai_bobot'];
+                    $krs_detail->nilai_huruf = $value['nilai_huruf'];
+                    $krs_detail->user_id = Auth::user()->id;
+                    $krs_detail->save();
+                }
             }
-
-            $krs_detail = KRSDetail::where('id', $value['id'])->first();
-            if ($krs_detail) {
-                $krs_detail->nilai_akhir = number_format($value['nilai_akhir'], 2);
-                $krs_detail->nilai_bobot = number_format($value['nilai_bobot'], 2);
-                $krs_detail->nilai_huruf = $value['nilai_huruf'];
-                $krs_detail->user_id = Auth::user()->id;
-                $krs_detail->save();
-            }
+            alert()->success('Simpan Nilai Success', $this->title);
+            DB::commit();
+            return back()->withInput();
+        } catch (\Throwable $th) {
+            //throw $th;
+            alert()->success('Gagal Simpan Data', $this->title);
+            DB::rollback();
+            dd($th->getMessage());
+            return back()->withInput();
         }
-
-        alert()->success('Simpan Nilai Success', $this->title);
-        return back()->withInput();
-    }
-
-    public function cetakkrs($krs_id)
-    {
-        $krs = KRS::where('id', $krs_id)
-            ->with('mahasiswa', 'th_akademik', 'prodi', 'kelas')
-            ->first();
-
-        $th_akademik = ThAkademik::where('id', $krs->th_akademik_id)->first();
-
-        $pt = PT::first();
-        $prodi = @Prodi::where('id', $krs->prodi_id)->first();
-
-        $data = KRSDetail::where('krs_id', $krs->id)
-            ->with('jadwal_kuliah', 'jamkul')
-            ->get();
-
-        $class = 'text-center';
-
-        $pdf = PDF::loadView(
-            $this->folder . '.cetak',
-            compact('data', 'pt', 'th_akademik', 'krs', 'prodi', 'class')
-        );
-
-        return $pdf->setPaper('a4', 'portrait')
-            ->stream('KRS ' . $th_akademik->kode . ' ' . $krs->nim . '.pdf');
-    }
-
-    public function cetakAll(Request $request)
-    {
-        $th_akademik_id = $request->th_akademik_id;
-        $prodi_id = $request->prodi_id;
-        $kelas_id = $request->kelas_id;
-        $kelompok_id = $request->kelompok_id;
-
-        $th_akademik = ThAkademik::where('id', $th_akademik_id)->first();
-        $pt = PT::first();
-
-        $data = JadwalKuliah::where('th_akademik_id', $th_akademik_id)
-            ->where('prodi_id', $prodi_id)
-            ->where('kelas_id', $kelas_id)
-            ->when($kelompok_id, function ($query) use ($kelompok_id) {
-                return $query->where('kelompok_id', $kelompok_id);
-            })
-            ->orderBy('smt', 'asc')
-            ->with(['th_akademik', 'prodi', 'kelas', 'kelompok', 'kurikulum_matakuliah', 'dosen', 'ruang_kelas'])->get();
-
-        $pdf = PDF::loadView(
-            $this->folder . '.cetak',
-            compact('data', 'th_akademik', 'pt')
-        );
-
-        return $pdf->setPaper('a4', 'landscape')->stream('Laporan KRS ' . $th_akademik->kode . '.pdf');
-    }
-
-    public function cetak($id)
-    {
-        $pt = PT::first();
-        $prodi = @Prodi::where('id', Auth::user()->prodi_id)->first();
-
-        $jadwal = JadwalKuliah::where('id', $id)
-            ->with('kurikulum_matakuliah', 'th_akademik')->first();
-
-        $th_akademik = ThAkademik::where('id', $jadwal->th_akademik_id)->first();
-
-        $data = KRSDetail::select('trans_krs_detail.*')
-            ->join('mst_mhs', 'mst_mhs.nim', '=', 'trans_krs_detail.nim')
-            ->where('jadwal_kuliah_id', $id)
-            ->orderBy('mst_mhs.nama', 'asc')
-            ->with(['mahasiswa'])->get();
-
-        $komponen_nilai = KomponenNilai::get();
-        $class = 'text-center';
-
-        $pdf = PDF::loadView(
-            $this->folder . '.cetak',
-            compact('data', 'th_akademik', 'pt', 'jadwal', 'komponen_nilai', 'prodi', 'class')
-        );
-
-        return $pdf->setPaper('a4', 'potrait')
-            ->stream('NILAI MAHASISWA ' . $jadwal->dosen->nama . ' ' .
-                $jadwal->kurikulum_matakuliah->matakuliah->nama . '.pdf');
     }
 }
